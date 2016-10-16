@@ -59,18 +59,25 @@ class Date(urwid.WidgetWrap):
 
     """used in the main calendar for dates (a number)"""
 
-    def __init__(self, date, get_styles=None):
-        dstr = str(date.day).rjust(2)
+    def __init__(self, date, get_styles=None,dstr=""):
+        #dstr = str(date.day).rjust(2)
+        self.complete = urwid.AttrMap(DatePart(dstr), None, None)
         self.halves = [urwid.AttrMap(DatePart(dstr[:1]), None, None),
                        urwid.AttrMap(DatePart(dstr[1:]), None, None)]
         self.date = date
         self._get_styles = get_styles
-        super(Date, self).__init__(urwid.Columns(self.halves))
+        self.dstr = dstr
+        super(Date, self).__init__(self.complete)
 
     def set_styles(self, styles):
         """If single string, sets the same style for both halves, if two
         strings, sets different style for each half.
         """
+        if type(styles) is tuple:
+            self.complete.set_attr_map({None: styles[0]})
+        else:
+            self.complete.set_attr_map({None: styles})
+        return
         if type(styles) is tuple:
             self.halves[0].set_attr_map({None: styles[0]})
             self.halves[1].set_attr_map({None: styles[1]})
@@ -123,7 +130,6 @@ class DateCColumns(urwid.Columns):
         self._old_pos = 0
         self._init = True
         super(DateCColumns, self).__init__(widget_list, **kwargs)
-
     def __repr__(self):
         return '<DateCColumns from {} to {}>'.format(self[1].date, self[7].date)
 
@@ -327,13 +333,14 @@ class CListBox(urwid.ListBox):
 class CalendarWalker(urwid.SimpleFocusListWalker):
 
     def __init__(self, on_date_change, on_press, keybindings, firstweekday=0,
-                 weeknumbers=False, get_styles=None):
+                 weeknumbers=False, get_styles=None, collection=None):
         self.firstweekday = firstweekday
         self.weeknumbers = weeknumbers
         self.on_date_change = on_date_change
         self.on_press = on_press
         self.keybindings = keybindings
         self.get_styles = get_styles
+        self.collection = collection
         weeks = self._construct_month()
         urwid.SimpleFocusListWalker.__init__(self, weeks)
 
@@ -406,6 +413,7 @@ class CalendarWalker(urwid.SimpleFocusListWalker):
     def _autoprepend(self):
         """prepends the previous month
 
+        complete.set_attr_map({None: style
         :returns: number of weeks prepended
         :rtype: int
         """
@@ -451,8 +459,14 @@ class CalendarWalker(urwid.SimpleFocusListWalker):
 
         this_week = [(4, urwid.AttrMap(urwid.Text(month_name), attr))]
         for number, day in enumerate(week):
-            new_date = Date(day, self.get_styles)
-            this_week.append((2, new_date))
+            dstr = (str(day.day) + " ") .rjust(60," ")
+            events = self.collection.get_events_on(day)
+            for event in events:
+                dstr += event.summary + " "
+            dstr = dstr.ljust(50)
+            dstr = dstr[:100]
+            new_date = Date(day, self.get_styles,dstr)
+            this_week.append((20, new_date))
             new_date.set_styles(self.get_styles(new_date.date, False))
         if self.weeknumbers == 'right':
             this_week.append((2, urwid.AttrMap(
@@ -509,7 +523,7 @@ class CalendarWalker(urwid.SimpleFocusListWalker):
 
 class CalendarWidget(urwid.WidgetWrap):
     def __init__(self, on_date_change, keybindings, on_press, firstweekday=0,
-                 weeknumbers=False, get_styles=None, initial=date.today()):
+                 weeknumbers=False, get_styles=None, initial=date.today(), collection=None):
 
         """
         :param on_date_change: a function that is called every time the selected date
@@ -578,7 +592,7 @@ class CalendarWidget(urwid.WidgetWrap):
             dividechars=1)
         self.walker = CalendarWalker(
             on_date_change, on_press, default_keybindings, firstweekday, weeknumbers,
-            get_styles)
+            get_styles,collection)
         self.box = CListBox(self.walker)
         frame = urwid.Frame(self.box, header=dnames)
         urwid.WidgetWrap.__init__(self, frame)

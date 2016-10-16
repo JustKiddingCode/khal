@@ -726,10 +726,11 @@ class ClassicView(Pane):
             on_press={'n': self.new_event},
             firstweekday=conf['locale']['firstweekday'],
             weeknumbers=conf['locale']['weeknumbers'],
-            get_styles=collection.get_styles
+            get_styles=collection.get_styles,
+            collection=collection 
         )
         self.calendar = ContainerWidget(calendar)
-        lwidth = 31 if conf['locale']['weeknumbers'] == 'right' else 28
+        lwidth = 200 if conf['locale']['weeknumbers'] == 'right' else 198
         columns = urwid.Columns([(lwidth, self.calendar), self.eventscolumn],
                                 dividechars=0,
                                 box_columns=[0, 1])
